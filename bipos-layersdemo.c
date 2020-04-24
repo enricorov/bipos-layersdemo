@@ -1,16 +1,19 @@
 /*
 	
 	Layers Demo for BipOS custom firmware
+    v0.2
 	
 	by Enrico Rovere - https://github.com/enricorov/bipos-layersdemo
 	
 */
 
-#define CENTER_WINDOW 0
-#define UP_WINDOW 1
-#define DOWN_WINDOW 2
-#define LEFT_WINDOW 3
-#define RIGHT_WINDOW 4
+#define CENTER_WINDOW_INDEX 0
+#define LEFT_WINDOW_INDEX 1
+#define RIGHT_WINDOW_INDEX 2
+#define UP_WINDOW_INDEX 3
+#define DOWN_WINDOW_INDEX 4
+#define SETTINGS_WINDOW_INDEX 5
+#define HELP_WINDOW_INDEX 6
 
 #include "bipos-layersdemo.h"
 
@@ -20,16 +23,16 @@
 #endif
 //	screen menu structure - each screen has its own
 struct regmenu_ screen_data = {
-	55,					//	curr_screen - main screen number, value 0-255, for custom windows it is better to take from 50 and above
-	1,					//	swipe_scr - auxiliary screen number (usually 1)
-	0,					//	overlay - 0
-	interactionHandler, //          - pointer to the handler of interaction (touch, swipe, long press)
-	key_press_screen,	//	        - handler of short button press
-	refreshScreen,		//	        - timer callback function and..
-	0,					//	            ..the variable passed to it
-	show_screen,		//	        - function writing to video buffer and..
-	0,					//              ..the variable passed to it
-	0					//	        - handler of long button press
+    55,                 //	curr_screen - main screen number, value 0-255, for custom windows it is better to take from 50 and above
+    1,                  //	swipe_scr - auxiliary screen number (usually 1)
+    0,                  //	overlay - 0
+    interactionHandler, //          - pointer to the handler of interaction (touch, swipe, long press)
+    key_press_screen,   //	        - handler of short button press
+    refreshScreen,      //	        - timer callback function and..
+    0,                  //	            ..the variable passed to it
+    show_screen,        //	        - function writing to video buffer and..
+    0,                  //              ..the variable passed to it
+    0                   //	        - handler of long button press
 };
 
 #ifdef __SIMULATION__
@@ -37,214 +40,301 @@ int main_app(int param0)
 {
 #else
 int main(int param0, char **argv)
-{													//	here the variable argv is not defined
+{                                                   //	here the variable argv is not defined
 #endif
-	show_screen((void *)param0);
+    show_screen((void *)param0);
 }
 
-// CALLBACK FUNCTIONS - functions associated to objects i.e. buttons or layers
+// CALLBACK FUNCTIONS - functions associated to objects i.e. buttons or windows
+
+void overlayWindowCallbackFunction(Window_ *window, Way_ way)
+{
+    Window_ *centerWindow = getAppData()->vp.windowArray[CENTER_WINDOW_INDEX];
+
+    if (way == DOWN)
+        getAppData()->vp.active = centerWindow;
+
+    refreshWindow(getAppData()->vp.active, 1);
+}
+
+void simpleWindowCallbackFunction(Window_ *window, Way_ way)
+{
+    if (window->neighbors[way] != 0)
+        getAppData()->vp.active = (Window_ *)window->neighbors[(int)way];
+}
+
+void changeWindowColourCallbackFunction(Layer_ *layer, short button_id){
+
+    short nextColour = (unsigned short) rand() % COLORS_COUNT; // colour number
+
+    layer->buttonArray[button_id]->filling = nextColour;
+    getAppData()->vp.windowArray[button_id]->layerArray[0]->backgroundColour = nextColour;    
+
+    refreshWindow(getAppData()->vp.active, 1);
+
+};
 
 void goToSettingsCallbackFunction(Layer_ *layer, short button_id)
 {
+    Window_ *settingsWindow = getAppData()->vp.windowArray[SETTINGS_WINDOW_INDEX];
+
+    getAppData()->vp.active = settingsWindow;
+
+    refreshWindow(getAppData()->vp.active, 1);
 }
 
 void goToHelpCallbackFunction(Layer_ *layer, short button_id)
 {
+    Window_ *tempWindow = getAppData()->vp.windowArray[HELP_WINDOW_INDEX];
+
+    getAppData()->vp.active = tempWindow;
+
+    refreshWindow(getAppData()->vp.active, 1);
 }
 
-void startGameCallbackFunction(Layer_ *layer, short button_id)
-{
-}
 // CONSTRUCTORS - Defining elements, put the messy intializations here
 
-void layerOverlayConstructor(Layer_ *layerOverlay)
+void layerSettingsConstructor(Layer_ *layerSettings)
 {
 
-	setLayerBackground(layerOverlay, COLOR_SH_AQUA);
+    setLayerBackground(layerSettings, COLOR_SH_BLACK);
 
-	/* 	TextBox_ tempText = DEFAULT_TEXTBOX;
+    Button_ *tempButton;
 
-	tempText.topLeft = (Point_ ) {4, 70};
-	tempText.bottomRight = (Point_) {172, 150};
-	_strcpy(tempText.body, "This is an overlay");
-	tempText.colour = COLOR_SH_WHITE;
-	tempText.background = COLOR_SH_BLACK; */
 
-	//setLayerTextBox(layerOverlay, tempText);
+    tempButton = addButtonToLayer(layerSettings);           // button 0
 
-	Button_ *placeholderButton = addButtonToLayer(layerOverlay);
+    setButton(tempButton,
+        BIPUI_UNDER_WINDOW_LABEL_LEFT_POINT,
+        BIPUI_UNDER_WINDOW_LABEL_RIGHT_POINT,
+        "Center",
+        COLOR_SH_WHITE,
+        getWindowByIndex(CENTER_WINDOW_INDEX)->layerArray[0]->backgroundColour,
+        COLOR_SH_BLACK,
+        changeWindowColourCallbackFunction,
+        BUTTON_STYLE_DEFAULT_SQUARED);
 
-	*placeholderButton = DEFAULT_BUTTON_INSTANCE;
-	placeholderButton->topLeft = (Point_){4, 25};
-	placeholderButton->bottomRight = (Point_){172, 50};
-	placeholderButton->filling = COLOR_SH_BLACK;
-	placeholderButton->border = COLOR_SH_RED;
-	placeholderButton->params.style = BUTTON_STYLE_DEFAULT_SQUARED;
-	_strcpy(placeholderButton->label, "OVERLAY");
-}
+    movePoint(&tempButton->bottomRight, DOWN, DEFAULT_BUTTON_HEIGHT); 
 
-void layerBlankConstructor(Layer_ *layerSettings)
-{
+    tempButton = addButtonToLayer(layerSettings);  // button 1
 
-	setLayerBackground(layerSettings, COLOR_SH_AQUA);
+    setButton(tempButton,
+        BIPUI_BOTTOM_LEFT_POINT,
+        BIPUI_BOTTOM_LEFT_POINT,
+        getWindowByIndex(LEFT_WINDOW_INDEX)->name,
+        COLOR_SH_WHITE,
+        getWindowByIndex(LEFT_WINDOW_INDEX)->layerArray[0]->backgroundColour,
+        COLOR_SH_BLACK,
+        changeWindowColourCallbackFunction,
+        BUTTON_STYLE_DEFAULT_SQUARED);
 
-	/* 	TextBox_ tempText;
+    movePoint(&tempButton->topLeft, UP, DEFAULT_BUTTON_HEIGHT);
+    movePoint(&tempButton->bottomRight, RIGHT, DEFAULT_BUTTON_WIDTH);
 
-	tempText.topLeft = BIPUI_TOP_LEFT_POINT;
-	tempText.bottomRight = BIPUI_BOTTOM_RIGHT_POINT;
-	_strcpy(tempText.body, "Options");
-	tempText.colour = COLOR_SH_WHITE;
-	tempText.background = COLOR_SH_BLACK; */
+    tempButton = addButtonToLayer(layerSettings);           // button 2
 
-	//setLayerTextBox(layerSettings, tempText);
+    setButton(tempButton,
+        BIPUI_BOTTOM_RIGHT_POINT,
+        BIPUI_BOTTOM_RIGHT_POINT,
+        getWindowByIndex(RIGHT_WINDOW_INDEX)->name,
+        COLOR_SH_WHITE,
+        getWindowByIndex(RIGHT_WINDOW_INDEX)->layerArray[0]->backgroundColour,
+        COLOR_SH_BLACK,
+        changeWindowColourCallbackFunction,
+        BUTTON_STYLE_DEFAULT_SQUARED);
+
+    movePoint(&tempButton->topLeft, LEFT, DEFAULT_BUTTON_WIDTH);
+    movePoint(&tempButton->topLeft, UP, DEFAULT_BUTTON_HEIGHT); 
+
+    tempButton = addButtonToLayer(layerSettings);           // button 3
+
+    setButton(tempButton,
+        BIPUI_BOTTOM_LEFT_POINT,
+        BIPUI_BOTTOM_LEFT_POINT,
+        getWindowByIndex(UP_WINDOW_INDEX)->name,
+        COLOR_SH_WHITE,
+        getWindowByIndex(UP_WINDOW_INDEX)->layerArray[0]->backgroundColour,
+        COLOR_SH_BLACK,
+        changeWindowColourCallbackFunction,
+        BUTTON_STYLE_DEFAULT_SQUARED);
+
+    movePoint(&tempButton->topLeft, UP, DEFAULT_BUTTON_HEIGHT);
+    movePoint(&tempButton->bottomRight, RIGHT, DEFAULT_BUTTON_WIDTH);
+
+    movePoint(&tempButton->topLeft, UP, DEFAULT_BUTTON_HEIGHT + 6);
+    movePoint(&tempButton->bottomRight, UP, DEFAULT_BUTTON_HEIGHT + 6);
+
+    tempButton = addButtonToLayer(layerSettings);           // button 4
+
+    setButton(tempButton,
+        BIPUI_BOTTOM_RIGHT_POINT,
+        BIPUI_BOTTOM_RIGHT_POINT,
+        getWindowByIndex(DOWN_WINDOW_INDEX)->name,
+        COLOR_SH_WHITE,
+        getWindowByIndex(DOWN_WINDOW_INDEX)->layerArray[0]->backgroundColour,
+        COLOR_SH_BLACK,
+        changeWindowColourCallbackFunction,
+        BUTTON_STYLE_DEFAULT_SQUARED);
+
+    movePoint(&tempButton->topLeft, LEFT, DEFAULT_BUTTON_WIDTH);
+    movePoint(&tempButton->topLeft, UP, DEFAULT_BUTTON_HEIGHT); 
+
+    movePoint(&tempButton->topLeft, UP, DEFAULT_BUTTON_HEIGHT + 6);
+    movePoint(&tempButton->bottomRight, UP, DEFAULT_BUTTON_HEIGHT + 6);
+
+
 }
 
 void layerHelpConstructor(Layer_ *layerHelp)
 {
 
-	setLayerBackground(layerHelp, COLOR_SH_PURPLE);
+    setLayerBackground(layerHelp, COLOR_SH_BLACK);
 
-	/* 	TextBox_ tempText;
+    TextBox_ *tbox = createTextbox();
 
-	tempText.topLeft = BIPUI_TOP_LEFT_POINT;
-	tempText.bottomRight = BIPUI_BOTTOM_RIGHT_POINT;
-	_strcpy(tempText.body, "Help");
-	tempText.colour = COLOR_SH_WHITE;
-	tempText.background = COLOR_SH_BLACK; */
+    tbox->topLeft = BIPUI_UNDER_WINDOW_LABEL_LEFT_POINT;
+    tbox->bottomRight = BIPUI_BOTTOM_RIGHT_POINT;
 
-	//setLayerTextBox(layerHelp, tempText);
+    tbox->background = COLOR_SH_BLACK;
+    tbox->colour = COLOR_SH_WHITE;
+    tbox->visible = 1;
+    tbox->centerText = 1;
+
+    _strncpy(tbox->body, "All the windows were\ndefined in begin(). \n\nUsing the \"Settings\"\nbutton you can change \nthe background of \nthe other windows.", MAX_SIZE_TEXT_BOX);
+    
+    layerHelp->textBox = tbox;
+
+    movePoint(&tbox->topLeft, RIGHT, 2);     // to the left, to the left
+
 }
 
 void layerCenterConstructor(Layer_ *layerMain)
 {
 
-	TextBox_ *temp = createTextbox(); // allocating textbox
+    TextBox_ *temp = createTextbox(); // allocating textbox
 
-	temp->topLeft = BIPUI_TOP_LEFT_POINT; // setting parameters
-	temp->bottomRight = BIPUI_BOTTOM_RIGHT_POINT;
-	temp->background = COLOR_SH_WHITE;
-	temp->colour = COLOR_SH_BLACK;
-	_strcpy(temp->body, "Swipe in any direction.");
-	temp->visible = 1; // do not forget to set visibility
+    temp->topLeft = BIPUI_CENTER_LEFT_POINT; // setting parameters
+    temp->bottomRight = BIPUI_CENTER_RIGHT_POINT;
+    temp->background = COLOR_SH_MASK;
+    temp->colour = COLOR_SH_BLACK;
+    _strcpy(temp->body, "Swipe in\nany direction.");
+    temp->visible = 1; // do not forget to set visibility
+    temp->centerText = 1;
 
-	layerMain->textBox = temp; // assigning pointer to layer
+    layerMain->textBox = temp; // assigning pointer to layer
 
-	movePoint(&temp->topLeft, DOWN, DEFAULT_TEXT_HEIGHT);
+    movePoint(&temp->topLeft, UP, DEFAULT_TEXT_HEIGHT);
+    movePoint(&temp->bottomRight, DOWN, DEFAULT_TEXT_HEIGHT);
 
-	/* 	short width = 81; // handy parameters for easier button creation
-	short horizontalSeparation = 6;
-	short verticalSeparation = 6;
-	short height = 30;
+    short width = 80;
+    short height = 30;
 
-	Point_ tempPointOne = BIPUI_BOTTOM_LEFT_POINT;
-	Point_ tempPointTwo = BIPUI_BOTTOM_LEFT_POINT;
+    Button_ *placeholderButton = addButtonToLayer(layerMain);
 
-	tempPointOne.y -= height;
-	tempPointTwo.x += width;
+    setButton(placeholderButton,
+              BIPUI_BOTTOM_LEFT_POINT,
+              BIPUI_BOTTOM_LEFT_POINT,
+              "SETTINGS",
+              COLOR_SH_WHITE,
+              COLOR_SH_RED,
+              COLOR_SH_WHITE,
+              goToSettingsCallbackFunction,
+              BUTTON_STYLE_SQUARED_NOBORDER);
 
-	layerMain->backgroundColour = COLOR_SH_BLACK;
+    movePoint(&placeholderButton->topLeft, UP, height);
+    movePoint(&placeholderButton->bottomRight, RIGHT, width);
 
- 	Button_ *placeholderButton;
+    placeholderButton = addButtonToLayer(layerMain);
 
-	placeholderButton = addButtonToLayer(layerMain);
+    setButton(placeholderButton,
+              BIPUI_BOTTOM_RIGHT_POINT,
+              BIPUI_BOTTOM_RIGHT_POINT,
+              "HELP",
+              COLOR_SH_WHITE,
+              COLOR_SH_BLUE,
+              COLOR_SH_WHITE,
+              goToHelpCallbackFunction,
+              BUTTON_STYLE_SQUARED_NOBORDER);
 
-	setButton(placeholderButton,
-			   tempPointOne,
-			   tempPointTwo,
-			   "OPTIONS",
-			   COLOR_SH_WHITE,
-			   COLOR_SH_RED,
-			   COLOR_SH_BLACK,
-			   goToSettingsCallbackFunction,
-			   BUTTON_STYLE_ROUNDED_NOBORDER);
-
-	
-	placeholderButton = addButtonToLayer(layerMain);
-
-	movePoint(&tempPointOne, RIGHT, horizontalSeparation + width);
-	movePoint(&tempPointTwo, RIGHT, horizontalSeparation + width);
-
-	setButton(placeholderButton,
-			   tempPointOne,
-			   tempPointTwo,
-			   "HELP",
-			   COLOR_SH_WHITE,
-			   COLOR_SH_YELLOW,
-			   COLOR_SH_BLACK,
-			   goToHelpCallbackFunction,
-			   BUTTON_STYLE_ROUNDED_NOBORDER);
-
-	placeholderButton = addButtonToLayer(layerMain);
-
-	tempPointOne.x = 44;
-	tempPointOne.y = 44;
-
-	tempPointTwo.x = 132;
-	tempPointTwo.y = 132;
-
-	setButton(placeholderButton, // initial button on the bottom left
-			   tempPointOne,
-			   tempPointTwo,
-			   "START GAME",
-			   COLOR_SH_WHITE,
-			   COLOR_SH_GREEN,
-			   COLOR_SH_WHITE,
-			   startGameCallbackFunction,
-			   BUTTON_STYLE_ROUNDED_NOBORDER); */
+    movePoint(&placeholderButton->topLeft, UP, height);
+    movePoint(&placeholderButton->topLeft, LEFT, width);
 }
 
 void begin(app_data_t *app_data)
 {
 
-	// creating windows here, adding them to the viewport allocates them and increments the index
+    _srand(get_tick_count());
 
-	Viewport_ *vp = &app_data->vp;
+    // creating windows here, adding them to the viewport allocates them and increments the index
 
-	Window_ *centerWindow = addWindowToViewport(vp); // index 0
-	setWindowName("Center", centerWindow);
+    Viewport_ *vp = &app_data->vp;
 
-	Window_ *leftWindow = addWindowToViewport(vp); // index 1
-	setWindowName("Left", leftWindow);
+    Window_ *centerWindow = addWindowToViewport(vp); // index 0
+    setWindowName("Layers Demo", centerWindow);
+    centerWindow->callbackFunction = simpleWindowCallbackFunction;
 
-	Window_ *rightWindow = addWindowToViewport(vp); // index 2
-	setWindowName("Right", rightWindow);
+    Window_ *leftWindow = addWindowToViewport(vp); // index 1
+    setWindowName("Left", leftWindow);
+    leftWindow->callbackFunction = simpleWindowCallbackFunction;
 
-	Window_ *upWindow = addWindowToViewport(vp); // index 3
-	setWindowName("Up", upWindow);
+    Window_ *rightWindow = addWindowToViewport(vp); // index 2
+    setWindowName("Right", rightWindow);
+    rightWindow->callbackFunction = simpleWindowCallbackFunction;
 
-	Window_ *downWindow = addWindowToViewport(vp); // index 4
-	setWindowName("Down", downWindow);
+    Window_ *upWindow = addWindowToViewport(vp); // index 3
+    setWindowName("Up", upWindow);
+    upWindow->callbackFunction = simpleWindowCallbackFunction;
 
-	linkWindows(centerWindow, LEFT, leftWindow);
-	linkWindows(centerWindow, RIGHT, rightWindow);
-	linkWindows(centerWindow, UP, upWindow);
-	linkWindows(centerWindow, DOWN, downWindow);
+    Window_ *downWindow = addWindowToViewport(vp); // index 4
+    setWindowName("Down", downWindow);
+    downWindow->callbackFunction = simpleWindowCallbackFunction;
 
-	// Creating (i.e. allocating) layers and using constructors to define their elements
+    Window_ *settingsWindow = addWindowToViewport(vp); // index 5
+    setWindowName("Settings", settingsWindow);
+    settingsWindow->callbackFunction = overlayWindowCallbackFunction;
 
-	Layer_ *layerTemp = addLayerToWindow(centerWindow);
-	layerTemp->backgroundColour = COLOR_SH_PURPLE;
-	layerCenterConstructor(layerTemp);
+    Window_ *helpWindow = addWindowToViewport(vp); //index 6
+    setWindowName("Help", helpWindow);
+    helpWindow->callbackFunction = overlayWindowCallbackFunction;
 
-	layerTemp = addLayerToWindow(leftWindow);
-	layerTemp->backgroundColour = COLOR_SH_RED;
+    // linking windows for swipe navigation
 
-	layerTemp = addLayerToWindow(rightWindow);
-	layerTemp->backgroundColour = COLOR_SH_AQUA;
+    linkWindows(centerWindow, LEFT, leftWindow);
+    linkWindows(centerWindow, RIGHT, rightWindow);
+    linkWindows(centerWindow, UP, upWindow);
+    linkWindows(centerWindow, DOWN, downWindow);
 
-	layerTemp = addLayerToWindow(upWindow);
-	layerTemp->backgroundColour = COLOR_SH_BLUE;
+    // Creating (i.e. allocating) layers and using constructors to define their elements
 
-	layerTemp = addLayerToWindow(downWindow);
-	layerTemp->backgroundColour = COLOR_SH_YELLOW;
+    Layer_ *layerTemp = addLayerToWindow(centerWindow);
+    layerTemp->backgroundColour = COLOR_SH_BLACK;
+    layerCenterConstructor(layerTemp);
 
-	vp->active = centerWindow;
+    layerTemp = addLayerToWindow(leftWindow);
+    layerTemp->backgroundColour = COLOR_SH_RED;
+
+    layerTemp = addLayerToWindow(rightWindow);
+    layerTemp->backgroundColour = COLOR_SH_AQUA;
+
+    layerTemp = addLayerToWindow(upWindow);
+    layerTemp->backgroundColour = COLOR_SH_BLUE;
+
+    layerTemp = addLayerToWindow(downWindow);
+    layerTemp->backgroundColour = COLOR_SH_YELLOW;
+
+    layerTemp = addLayerToWindow(settingsWindow);
+    layerSettingsConstructor(layerTemp);
+
+    layerTemp = addLayerToWindow(helpWindow);
+    layerHelpConstructor(layerTemp);
+
+    vp->active = centerWindow;
 }
 
 void end(app_data_t *app_data)
 {
 
-	destroyViewport(&app_data->vp);
+    destroyViewport(&app_data->vp);
 }
 
 // Utility functions
@@ -252,151 +342,136 @@ void end(app_data_t *app_data)
 void show_screen(void *param0)
 {
 #ifdef __SIMULATION__
-	app_data_t *app_data = get_app_data_ptr();
-	app_data_t **app_data_p = &app_data;
+    app_data_t *app_data = get_app_data_ptr();
+    app_data_t **app_data_p = &app_data;
 #else
-	app_data_t **app_data_p = get_ptr_temp_buf_2(); //	pointer to a pointer to screen data
-	app_data_t *app_data;							//	pointer to screen data
+    app_data_t **app_data_p = get_ptr_temp_buf_2(); //	pointer to a pointer to screen data
+    app_data_t *app_data;                           //	pointer to screen data
 #endif
 
-	Elf_proc_ *proc;
+    Elf_proc_ *proc;
 
-	// check the source at the procedure launch
-	if ((param0 == *app_data_p) && get_var_menu_overlay())
-	{ // return from the overlay screen (incoming call, notification, alarm, target, etc.)
+    // check the source at the procedure launch
+    if ((param0 == *app_data_p) && get_var_menu_overlay())
+    { // return from the overlay screen (incoming call, notification, alarm, target, etc.)
 
-		app_data = *app_data_p; //	the data pointer must be saved for the deletion
-								//	release memory function reg_menu
-		*app_data_p = NULL;		//	reset the pointer to pass it to the function reg_menu
+        app_data = *app_data_p; //	the data pointer must be saved for the deletion
+                                //	release memory function reg_menu
+        *app_data_p = NULL;     //	reset the pointer to pass it to the function reg_menu
 
-		// 	create a new screen when the pointer temp_buf_2 is equal to 0 and the memory is not released
-		reg_menu(&screen_data, 0); // 	menu_overlay=0
+        // 	create a new screen when the pointer temp_buf_2 is equal to 0 and the memory is not released
+        reg_menu(&screen_data, 0); // 	menu_overlay=0
 
-		*app_data_p = app_data;
-	}
-	else
-	{ // if the function is started for the first time i.e. from the menu
+        *app_data_p = app_data;
+    }
+    else
+    { // if the function is started for the first time i.e. from the menu
 
-		// create a screen (register in the system)
-		reg_menu(&screen_data, 0);
+        // create a screen (register in the system)
+        reg_menu(&screen_data, 0);
 
-		// allocate the necessary memory and place the data in it (the memory by the pointer stored at temp_buf_2 is released automatically by the function reg_menu of another screen)
-		*app_data_p = (app_data_t *)pvPortMalloc(sizeof(app_data_t));
-		app_data = *app_data_p; //	data pointer
+        // allocate the necessary memory and place the data in it (the memory by the pointer stored at temp_buf_2 is released automatically by the function reg_menu of another screen)
+        *app_data_p = (app_data_t *)pvPortMalloc(sizeof(app_data_t));
+        app_data = *app_data_p; //	data pointer
 
-		// clear the memory for data
-		_memclr(app_data, sizeof(app_data_t));
+        // clear the memory for data
+        _memclr(app_data, sizeof(app_data_t));
 
-		//	param0 value contains a pointer to the data of the running process structure Elf_proc_
-		proc = param0;
+        //	param0 value contains a pointer to the data of the running process structure Elf_proc_
+        proc = param0;
 
-		// remember the address of the pointer to the function you need to return to after finishing this screen
-		if (param0 && proc->ret_f) //	if the return pointer is passed, then return to it
-			app_data->ret_f = proc->elf_finish;
-		else //	if not, to the watchface
-			app_data->ret_f = show_watchface;
+        // remember the address of the pointer to the function you need to return to after finishing this screen
+        if (param0 && proc->ret_f) //	if the return pointer is passed, then return to it
+            app_data->ret_f = proc->elf_finish;
+        else //	if not, to the watchface
+            app_data->ret_f = show_watchface;
 
 #ifdef __SIMULATION__
-		set_app_data_ptr(app_data);
+        set_app_data_ptr(app_data);
 #endif
 
-		begin(app_data);
-	}
-	caffeine(WEAK);
+        begin(app_data);
+    }
+    caffeine(STRONG);
 
-	refreshWindow(app_data->vp.active, 0);
+    refreshWindow(app_data->vp.active, 1);
 }
 
 void key_press_screen()
 {
-#ifdef __SIMULATION__
-	app_data_t *app_data = get_app_data_ptr();
-	app_data_t **app_data_p = &app_data;
-#else
-	app_data_t **app_data_p = get_ptr_temp_buf_2(); //	pointer to a pointer to screen data
-	app_data_t *app_data = *app_data_p;				//	pointer to screen data
-#endif
+    
+    app_data_t *app_data = getAppData();
 
-	// destroy all elements, memory leaks are bad
-	destroyViewport(&app_data->vp);
+    // destroy all elements, memory leaks are bad
+    destroyViewport(&app_data->vp);
 
-	// call the return function (usually this is the start menu), specify the address of the function of our application as a parameter
-	show_menu_animate(app_data->ret_f, (unsigned int)show_screen, ANIMATE_RIGHT);
+    // call the return function (usually this is the start menu), specify the address of the function of our application as a parameter
+    show_menu_animate(app_data->ret_f, (unsigned int)show_screen, ANIMATE_RIGHT);
 };
 
 void refreshScreen()
 { // triggered by set_update_period
 
-#ifdef __SIMULATION__
-	app_data_t *app_data = get_app_data_ptr();
-	app_data_t **app_data_p = &app_data;
-#else
-	app_data_t **app_data_p = get_ptr_temp_buf_2(); //	pointer to a pointer to screen data
-	app_data_t *app_data = *app_data_p;				//	pointer to screen data
-#endif
-	refreshWindow(app_data->vp.active, 1);
-	vibrate(2, 50, 150);
+    app_data_t *app_data = getAppData();
+
+    refreshWindow(app_data->vp.active, 1);
+    vibrate(2, 50, 150);
 }
 
 int interactionHandler(void *param)
 {
-#ifdef __SIMULATION__
-	app_data_t *app_data = get_app_data_ptr();
-	app_data_t **app_data_p = &app_data;
-#else
-	app_data_t **app_data_p = get_ptr_temp_buf_2(); //	pointer to a pointer to screen data
-	app_data_t *app_data = *app_data_p;				//	pointer to screen data
-#endif
+    
+    app_data_t *app_data = getAppData();
 
-	struct gesture_ *gest = param;
-	int result = 0;
+    struct gesture_ *gest = param;
+    int result = 0;
 
-	Window_ *activeWindow = app_data->vp.active;
-	Layer_ *activeLayer = activeWindow->layerArray[0]; // for now, interaction can be had with the first layer
+    Window_ *activeWindow = app_data->vp.active;
+    Layer_ *activeLayer = activeWindow->layerArray[0]; // for now, interaction can be had with the first layer
 
-	switch (gest->gesture)
-	{
-	case GESTURE_CLICK:
-	{
-		processTap(activeLayer, gest->touch_pos_x, gest->touch_pos_y);
-		break;
-	};
-	case GESTURE_SWIPE_RIGHT:
-	{ //	swipe to the right
-		processSwipe(activeWindow, gest->gesture);
-		refreshWindow(app_data->vp.active, 1);
-		// show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
-		break;
-	};
-	case GESTURE_SWIPE_LEFT:
-	{ // swipe to the left
-		processSwipe(activeWindow, gest->gesture);
-		refreshWindow(app_data->vp.active, 1);
-		// show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
-		break;
-	};
-	case GESTURE_SWIPE_UP:
-	{ // swipe up
-		processSwipe(activeWindow, gest->gesture);
-		refreshWindow(app_data->vp.active, 1);
-		// show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
-		break;
-	};
-	case GESTURE_SWIPE_DOWN:
-	{ // swipe down
+    switch (gest->gesture)
+    {
+    case GESTURE_CLICK:
+    {
+        processTap(activeLayer, gest->touch_pos_x, gest->touch_pos_y);
+        break;
+    };
+    case GESTURE_SWIPE_RIGHT:
+    { //	swipe to the right
+        processSwipe(activeWindow, gest->gesture);
+        refreshWindow(app_data->vp.active, 1);
+        // show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
+        break;
+    };
+    case GESTURE_SWIPE_LEFT:
+    { // swipe to the left
+        processSwipe(activeWindow, gest->gesture);
+        refreshWindow(app_data->vp.active, 1);
+        // show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
+        break;
+    };
+    case GESTURE_SWIPE_UP:
+    { // swipe up
+        processSwipe(activeWindow, gest->gesture);
+        refreshWindow(app_data->vp.active, 1);
+        // show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
+        break;
+    };
+    case GESTURE_SWIPE_DOWN:
+    { // swipe down
 
-		processSwipe(activeWindow, gest->gesture);
-		refreshWindow(app_data->vp.active, 1);
-		// show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
-		break;
-	};
-	default:
-	{ // something went wrong ...
+        processSwipe(activeWindow, gest->gesture);
+        refreshWindow(app_data->vp.active, 1);
+        // show_menu_animate(show_menu, (unsigned int) refreshWindow(app_data->vp.active, 0), gest->gesture%4);
+        break;
+    };
+    default:
+    { // something went wrong ...
 
-		break;
-	};
-	}
-	//	}
+        break;
+    };
+    }
+    //	}
 
-	return result;
+    return result;
 };

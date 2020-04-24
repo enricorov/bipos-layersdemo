@@ -56,12 +56,18 @@ void drawTextBox(TextBox_ *box)
     set_bg_color(getLongColour(box->background));
     set_fg_color(getLongColour(box->colour));
 
-    draw_filled_rect_bg(box->topLeft.x, box->topLeft.y, 
+    draw_filled_rect_bg(box->topLeft.x, box->topLeft.y,
                         box->bottomRight.x, box->bottomRight.y);
 
-    text_out_center(box->body,                                      // the text
+    if(box->centerText) {
+
+        text_out_center(box->body,                                      // the text
                     (int)(box->topLeft.x + box->bottomRight.x) / 2, // median
-                    (int)box->topLeft.y - 2);                       // slightly up
+                    (int)box->topLeft.y );                       // slightly up
+    } else {
+
+        text_out(box->body, (int) box->topLeft.x, (int) box->topLeft.y);
+    }
 }
 
 void refreshWindow(Window_ *window, char repaint)
@@ -86,7 +92,7 @@ void refreshWindow(Window_ *window, char repaint)
     if (window->nameVisible)
     {
 
-        set_bg_color(getLongColour(window->layerArray[0]->backgroundColour));
+        set_bg_color(getLongColour(window->layerArray[0]->backgroundColour)); // for legibility
         if (window->layerArray[0]->backgroundColour == COLOR_SH_WHITE || window->layerArray[0]->backgroundColour == COLOR_SH_YELLOW)
             set_fg_color(getLongColour(COLOR_SH_BLACK));
         else
@@ -100,6 +106,15 @@ void refreshWindow(Window_ *window, char repaint)
 
     if (repaint)
         repaint_screen();
+}
+
+Window_ *getWindowByIndex(short index) {
+
+    short currentIndex = getAppData()->vp.windowIndex;
+
+    if(index < currentIndex)
+        return getAppData()->vp.windowArray[index];
+
 }
 
 short setWindowName(char *name, Window_ *window)
@@ -218,9 +233,11 @@ void processTap(Layer_ *layer, int x, int y)
         // was the tap inside the button?
         if (temp->topLeft.x < x && temp->bottomRight.x > x && temp->topLeft.y < y && temp->bottomRight.y > y)
         {
-            //vibrate(1, 50, 0); // vibrate if successful
-            // set_close_timer(5); // paramose il culo
-            temp->callbackFunction(layer, i);
+            vibrate(1, 50, 0); // vibrate if successful
+            if (temp->callbackFunction != 0)
+                temp->callbackFunction(layer, i);
+            else
+                printErrorText("CALLBACK UNDEFINED");
         }
     }
 }
@@ -229,8 +246,14 @@ void processSwipe(Window_ *window, char gesture)
 {
     Way_ way = (Way_)gesture - 2; // casting the gesture to way type
 
-    if (window->neighbors[way] != 0)
-        getAppData()->vp.active = (Window_ *)window->neighbors[(int)way];
+    if (window->callbackFunction != 0)
+    {
+        window->callbackFunction(window, way);
+    }
+    else
+    {
+        printErrorText("CALLBACK UNDEFINED");
+    }
 }
 
 Layer_ *createLayer(void)
@@ -387,7 +410,7 @@ Button_ *addButtonToLayer(Layer_ *layer)
 }
 
 void setButton(Button_ *button, Point_ topLeft, Point_ bottomRight, char *label, short border,
-               short filling, short text, void *callbackFunction, Style_t style)
+               short filling, short textColour, void *callbackFunction, Style_t style)
 { // populating the struct
 
     button->topLeft.x = topLeft.x;
@@ -397,7 +420,7 @@ void setButton(Button_ *button, Point_ topLeft, Point_ bottomRight, char *label,
     _strcpy(button->label, label);
     button->border = border;
     button->filling = filling;
-    button->textColour = text;
+    button->textColour = textColour;
     button->callbackFunction = callbackFunction;
     button->params.style = style;
 
@@ -462,7 +485,10 @@ void drawButton(Button_ *button) // graphics of the button
     };
     }
 
-    set_fg_color(getLongColour(temp.textColour)); // Text is universal for now
+    if(temp.textColour != temp.filling)
+        set_fg_color(getLongColour(temp.textColour)); 
+    else
+        set_fg_color(~getLongColour(temp.textColour));
 
     text_out_center(temp.label,                                     // the text
                     (int)(temp.topLeft.x + temp.bottomRight.x) / 2, // median
@@ -483,7 +509,7 @@ void caffeine(Caffeine_t coffee)
 long getLongColour(short colour)
 {
 
-    switch (colour)
+    switch ((unsigned short) colour)
     {
 
     case COLOR_SH_AQUA:
@@ -547,4 +573,5 @@ void printErrorText(char *error)
     _strcpy(tempText.body, error);
 
     drawTextBox(&tempText);
+    repaint_screen();
 }

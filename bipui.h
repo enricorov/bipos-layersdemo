@@ -28,7 +28,10 @@ v.0.0
 
 #define MAX_NUM_BUTTONS 8
 #define MAX_SIZE_BUTTON_LABEL 15
-#define MAX_SIZE_TEXT_BOX 120
+#define MAX_SIZE_TEXT_BOX 180
+
+#define DEFAULT_BUTTON_WIDTH 81
+#define DEFAULT_BUTTON_HEIGHT 45
 
 #define MAX_SIZE_WINDOW_LABEL 30
 
@@ -38,7 +41,7 @@ v.0.0
 
 #define DEFAULT_BORDER_THICKNESS 4 // minimum reasonable distance of button edge to screen
 
-#define DEFAULT_TEXT_HEIGHT 25
+#define DEFAULT_TEXT_HEIGHT 20
 
 typedef struct Point_
 {
@@ -113,13 +116,14 @@ typedef struct TextBox_
         background;
 
     char visible;
-
+    char centerText;        // 1: render text centered, 0: render normally
+    
 } TextBox_;
 
 typedef struct LayerParams_
 {
 
-    short refreshDelay;
+    short state;
 
 } LayerParams_;
 
@@ -127,26 +131,28 @@ typedef struct Layer_
 {
 
     Button_ *buttonArray[MAX_NUM_BUTTONS]; // all buttons
-    unsigned short buttonIndex;                 // current valid button, init=0
+    unsigned short buttonIndex;            // current valid button, init=0
 
     short backgroundColour; // background for the current Layer
-    char visible;          // is the layer visible?
+    char visible;           // is the layer visible?
 
-    TextBox_ *textBox;                       // textbox for general usage
+    TextBox_ *textBox; // textbox for general usage
 
     LayerParams_ params; // holding state of the layer
-    void (*callbackFunction)();
+    //void (*callbackFunction)();
 } Layer_;
 
 typedef struct Window_
 {
-    int neighbors[4];      //pointers to neighboring windows (up. down, left, right)
+    int neighbors[4]; //pointers to neighboring windows (up. down, left, right)
 
     char name[MAX_SIZE_WINDOW_LABEL];
     char nameVisible;
-    
+
     Layer_ *layerArray[MAX_NUM_LAYERS];
     char layerIndex;
+
+    void (*callbackFunction)();
 
 } Window_;
 typedef struct Viewport_
@@ -182,6 +188,16 @@ const static Point_ BIPUI_TOP_LEFT_POINT = {
     DEFAULT_BORDER_THICKNESS,
     DEFAULT_BORDER_THICKNESS};
 
+const static Point_ BIPUI_UNDER_WINDOW_LABEL_LEFT_POINT = {
+
+    DEFAULT_BORDER_THICKNESS,
+    DEFAULT_BORDER_THICKNESS + DEFAULT_TEXT_HEIGHT};
+
+const static Point_ BIPUI_UNDER_WINDOW_LABEL_RIGHT_POINT = {
+
+    VIDEO_Y - DEFAULT_BORDER_THICKNESS,
+    DEFAULT_BORDER_THICKNESS + DEFAULT_TEXT_HEIGHT};
+
 const static Point_ BIPUI_TOP_RIGHT_POINT = {
 
     DEFAULT_BORDER_THICKNESS,
@@ -215,7 +231,9 @@ const static TextBox_ DEFAULT_TEXTBOX = {
     "TEXTBOX SAMPLE",
 
     COLOR_SH_RED,
-    COLOR_SH_BLACK};
+    COLOR_SH_BLACK, 
+    
+    1};
 
 const static ButtonParams_ DEFAULT_BUTTON_PARAMETERS = {
 
@@ -298,7 +316,7 @@ void movePoint(Point_ *point, Way_ dir, short space);
 
 
 void setButton(Button_ *button, Point_ topLeft, Point_ bottomRight, // initialize button with these parameters
-                char *label, short border, short filling, short text, void *callbackFunction, Style_t style);
+                char *label, short border, short filling, short textColour, void *callbackFunction, Style_t style);
 void spawnButton(Button_ *button, Layer_ *layer);       // adds button to layer and draws it - note: graphics are shown only after calling refresh_screen_lines()
 void drawButton(Button_ *button);                       // draws a button
 Button_ *addButtonToLayer(Layer_ *layer); // adds button to layer without drawing it
@@ -353,6 +371,9 @@ short findHighestOpaqueLayer(Window_ *window); // returns the highest indexed la
 void setActiveWindowViewport(Viewport_ *vp, Way_ way);  //sets the active window
 Window_ *getActiveWindow(Viewport_ *vp);     // returns the active window
 short setWindowName(char *name, Window_ *window);
+
+Window_ *getWindowByIndex(short index);
+
 
 void processSwipe(Window_ *window, char gesture);
 

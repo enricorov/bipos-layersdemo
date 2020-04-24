@@ -1,6 +1,6 @@
-BipUI Buttons
-RU	BipUI Buttons
-IT	BipUI Buttons
-ES	BipUI Buttons
-FR	BipUI Buttons
-DE	BipUI Buttons
+BipUI Layers Demo
+RU	BipUI Layers Demo
+IT	BipUI Layers Demo
+ES	BipUI Layers Demo
+FR	BipUI Layers Demo
+DE	BipUI Layers Demo
