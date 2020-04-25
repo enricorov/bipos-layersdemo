@@ -1,7 +1,6 @@
 /*
 	
 	Layers Demo for BipOS custom firmware
-    v0.2
 	
 	by Enrico Rovere - https://github.com/enricorov/bipos-layersdemo
 	
@@ -198,13 +197,11 @@ void layerHelpConstructor(Layer_ *layerHelp)
     tbox->background = COLOR_SH_BLACK;
     tbox->colour = COLOR_SH_WHITE;
     tbox->visible = 1;
-    tbox->centerText = 1;
+    tbox->centerText = 0;
 
     _strncpy(tbox->body, "All the windows were\ndefined in begin(). \n\nUsing the \"Settings\"\nbutton you can change \nthe background of \nthe other windows.", MAX_SIZE_TEXT_BOX);
     
     layerHelp->textBox = tbox;
-
-    movePoint(&tbox->topLeft, RIGHT, 2);     // to the left, to the left
 
 }
 
@@ -217,7 +214,7 @@ void layerCenterConstructor(Layer_ *layerMain)
     temp->bottomRight = BIPUI_CENTER_RIGHT_POINT;
     temp->background = COLOR_SH_MASK;
     temp->colour = COLOR_SH_BLACK;
-    _strcpy(temp->body, "Swipe in\nany direction.");
+    _strcpy(temp->body, "Swipe in\nany direction");
     temp->visible = 1; // do not forget to set visibility
     temp->centerText = 1;
 
@@ -290,7 +287,7 @@ void begin(app_data_t *app_data)
     downWindow->callbackFunction = simpleWindowCallbackFunction;
 
     Window_ *settingsWindow = addWindowToViewport(vp); // index 5
-    setWindowName("Settings", settingsWindow);
+    setWindowName("Tap to change colour", settingsWindow);
     settingsWindow->callbackFunction = overlayWindowCallbackFunction;
 
     Window_ *helpWindow = addWindowToViewport(vp); //index 6
@@ -392,7 +389,7 @@ void show_screen(void *param0)
 
         begin(app_data);
     }
-    caffeine(STRONG);
+    caffeine(WEAK);
 
     refreshWindow(app_data->vp.active, 1);
 }

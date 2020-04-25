@@ -26,7 +26,7 @@ v.0.0
 
 #ifndef __SIMULATION__
 
-#define MAX_NUM_BUTTONS 8
+#define MAX_NUM_BUTTONS 6
 #define MAX_SIZE_BUTTON_LABEL 15
 #define MAX_SIZE_TEXT_BOX 180
 
